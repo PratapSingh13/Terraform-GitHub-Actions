@@ -1,0 +1,125 @@
+name: "Terraform CI/CD Pipeline"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  # Credentials for deployment to AWS
+  # Store these in your GitHub Repository settings -> Secrets and variables -> Actions
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: "ap-south-1" # Update to your target AWS region
+
+jobs:
+  terraform:
+    name: "Terraform"
+    runs-on: ubuntu-latest
+    
+    # Use the bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+        # Update this to your terraform working directory if it's not the root
+        # working-directory: ./
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.8" # Specify your required Terraform version here
+
+      # Checks that all Terraform configuration files adhere to a canonical format
+      - name: Terraform Format
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      # Select or Create the appropriate Terraform Workspace
+      - name: Terraform Workspace Select
+        id: workspace
+        run: |
+          # Define logic to map GitHub branches to Terraform Workspaces
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            WORKSPACE="nagarro-promotion"
+          else
+            # Default to dev workspace for feature branches / PRs
+            WORKSPACE="dev-nagarro-promotion" 
+          fi
+          
+          echo "Selected Workspace: $WORKSPACE"
+          # Expose it as an environment variable to subsequent steps
+          echo "WORKSPACE=$WORKSPACE" >> $GITHUB_ENV
+          
+          # Select the workspace or create it if it doesn't exist
+          terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
+
+      # Validates the terraform configuration
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      # Generates an execution plan for Terraform
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        # Explicitly use the workspace variable to load the environment's tfvars
+        run: terraform plan -no-color -var-file="environment/${{ env.WORKSPACE }}/terraform.tfvars"
+        continue-on-error: true
+
+      # Add the plan output as a comment to the Pull Request
+      - name: Update Pull Request
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Workspace 📂\`${{ steps.workspace.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      # Fail the job if the plan step failed
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      # Apply the Terraform configuration on push to the main branch
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        # Explicitly use the workspace variable to load the environment's tfvars
+        run: terraform apply -auto-approve -var-file="environment/${{ env.WORKSPACE }}/terraform.tfvars"

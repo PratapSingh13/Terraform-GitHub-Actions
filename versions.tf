@@ -16,5 +16,11 @@ terraform {
     }
   }
 
-  backend "s3" {} # values set in each env's backend.tf
+  backend "s3" {
+    bucket         = "nagarro-promotion"
+    key            = "nagarro-promotion.tfstate"
+    region         = "ap-south-1"
+    encrypt        = true
+    dynamodb_table = "terraform-lock-table"
+  }
 }
