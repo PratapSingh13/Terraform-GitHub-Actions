@@ -49,6 +49,25 @@ jobs:
         id: init
         run: terraform init
 
+      # Select or Create the appropriate Terraform Workspace
+      - name: Terraform Workspace Select
+        id: workspace
+        run: |
+          # Define logic to map GitHub branches to Terraform Workspaces
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            WORKSPACE="nagarro-promotion"
+          else
+            # Default to dev workspace for feature branches / PRs
+            WORKSPACE="dev-nagarro-promotion" 
+          fi
+          
+          echo "Selected Workspace: $WORKSPACE"
+          # Expose it as an environment variable to subsequent steps
+          echo "WORKSPACE=$WORKSPACE" >> $GITHUB_ENV
+          
+          # Select the workspace or create it if it doesn't exist
+          terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
+
       # Validates the terraform configuration
       - name: Terraform Validate
         id: validate
@@ -58,7 +77,8 @@ jobs:
       - name: Terraform Plan
         id: plan
         if: github.event_name == 'pull_request'
-        run: terraform plan -no-color
+        # Explicitly use the workspace variable to load the environment's tfvars
+        run: terraform plan -no-color -var-file="environment/${{ env.WORKSPACE }}/terraform.tfvars"
         continue-on-error: true
 
       # Add the plan output as a comment to the Pull Request
@@ -72,6 +92,7 @@ jobs:
           script: |
             const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
             #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Workspace 📂\`${{ steps.workspace.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
 
@@ -100,4 +121,5 @@ jobs:
       # Apply the Terraform configuration on push to the main branch
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve
+        # Explicitly use the workspace variable to load the environment's tfvars
+        run: terraform apply -auto-approve -var-file="environment/${{ env.WORKSPACE }}/terraform.tfvars"
