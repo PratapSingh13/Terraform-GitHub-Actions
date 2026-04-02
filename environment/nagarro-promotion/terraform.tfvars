@@ -4,7 +4,7 @@
 region      = "ap-south-1"
 tagName     = "ng-promotion"
 environment = "promotion"
-project     = "nagarro-se"
+project     = "nagarro"
 
 # ################################################################################
 # VPC
