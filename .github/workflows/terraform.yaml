@@ -1,4 +1,4 @@
-name: "Terraform CI/CD Pipeline"
+name: Terraform CI/CD Pipeline
 
 on:
   push:
@@ -11,52 +11,48 @@ on:
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_REGION: "ap-south-1"
+  AWS_REGION: ap-south-1
+  TF_VERSION: 1.14.8
 
 jobs:
-  terraform-fmt:
-    name: "Terraform FMT"
+
+  # -------------------------------
+  # 1. LINT / FORMAT / VALIDATE
+  # -------------------------------
+  terraform-checks:
+    name: Terraform Checks
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.14.8"
+          terraform_version: ${{ env.TF_VERSION }}
+
       - name: Terraform Format
-        run: terraform fmt -check
-        continue-on-error: true
+        run: terraform fmt -check -recursive
 
-  terraform-validate:
-    name: "Terraform Validate"
-    needs: terraform-fmt
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.14.8"
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend=false
+
       - name: Terraform Validate
-        run: terraform validate -no-color
+        run: terraform validate
 
+
+  # -------------------------------
+  # 2. TERRAFORM PLAN
+  # -------------------------------
   terraform-plan:
-    name: "Terraform Plan"
-    needs: terraform-validate
+    name: Terraform Plan
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
+    needs: terraform-checks
+
+    outputs:
+      workspace: ${{ steps.workspace.outputs.workspace }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,70 +60,49 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.14.8"
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init
-        id: init
         run: terraform init
 
-      - name: Terraform Workspace Select
+      - name: Select Workspace
         id: workspace
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            WORKSPACE="nagarro-promotion"
+            WS="nagarro-promotion"
           else
-            WORKSPACE="dev-nagarro-promotion" 
+            WS="dev-nagarro-promotion"
           fi
-          echo "Selected Workspace: $WORKSPACE"
-          echo "WORKSPACE=$WORKSPACE" >> $GITHUB_ENV
-          terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
+          echo "workspace=$WS" >> $GITHUB_OUTPUT
+          terraform workspace select $WS || terraform workspace new $WS
 
       - name: Terraform Plan
-        id: plan
-        run: terraform plan -no-color -var-file="environment/${{ env.WORKSPACE }}/terraform.tfvars"
-        continue-on-error: true
+        run: |
+          terraform plan \
+            -out=tfplan \
+            -var-file="environment/${{ steps.workspace.outputs.workspace }}/terraform.tfvars"
 
-      - name: Update Pull Request
-        uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
-        env:
-          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+          name: tfplan
+          path: tfplan
 
-            <details><summary>Show Plan</summary>
 
-            \`\`\`\n
-            ${process.env.PLAN}
-            \`\`\`
-
-            </details>
-
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
-
-      - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
-        run: exit 1
-
+  # -------------------------------
+  # 3. MANUAL APPROVAL + APPLY
+  # -------------------------------
   terraform-apply:
-    name: "Terraform Apply"
-    needs: terraform-plan
+    name: Terraform Apply
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: terraform-plan
+
+    # 🔥 Manual approval happens here
     environment:
-      name: production  # Make sure this matches your Github Environment for manual approval
-    defaults:
-      run:
-        shell: bash
+      name: nagarro-promotion
+
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -135,17 +110,51 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.14.8"
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Workspace Select
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+
+      - name: Select Workspace
         run: |
-          WORKSPACE="nagarro-promotion"
-          echo "Selected Workspace: $WORKSPACE"
-          echo "WORKSPACE=$WORKSPACE" >> $GITHUB_ENV
-          terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
+          terraform workspace select nagarro-promotion || terraform workspace new nagarro-promotion
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var-file="environment/${{ env.WORKSPACE }}/terraform.tfvars"
+        run: terraform apply -auto-approve tfplan
+
+
+  # -------------------------------
+  # 4. OPTIONAL: DESTROY (MANUAL ONLY)
+  # -------------------------------
+  terraform-destroy:
+    name: Terraform Destroy (Manual)
+    runs-on: ubuntu-latest
+
+    if: github.event_name == 'workflow_dispatch'
+
+    environment:
+      name: nagarro-promotion
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Select Workspace
+        run: terraform workspace select nagarro-promotion
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve \
+          -var-file="environment/nagarro-promotion/terraform.tfvars"
