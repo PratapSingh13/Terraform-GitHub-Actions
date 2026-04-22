@@ -21,16 +21,28 @@ output "vpc_cidr" {
 #   value       = module.nat.nat_gateway_id
 # }
 
-# # Subnets
-# output "public_subnet_ids" {
-#   description = "List of public subnet IDs"
-#   value       = module.public_subnet.public_subnet_ids
-# }
+# Subnets
+# Public Subnets
+output "public_subnet_ids" {
+  description = "List of public subnet IDs"
+  value       = module.public_subnet.public_subnet_ids
+}
 
-# output "public_subnet_cidrs" {
-#   description = "CIDR blocks of public subnets"
-#   value       = module.public_subnet.public_subnets_cidr
-# }
+output "public_subnet_cidrs" {
+  description = "CIDR blocks of public subnets"
+  value       = module.public_subnet.public_subnets_cidr
+}
+
+# Private Subnets
+output "private_subnet_ids" {
+  description = "List of private subnet IDs"
+  value       = module.private_subnet.private_subnet_ids
+}
+
+output "private_subnet_cidrs" {
+  description = "CIDR blocks of private subnets"
+  value       = module.private_subnet.private_subnets_cidr
+}
 
 # # Route Tables
 # output "public_route_table_id" {

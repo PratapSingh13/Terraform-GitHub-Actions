@@ -34,20 +34,20 @@ variable "vpc_cidr" {
 # Variables for Subnets
 # ################################################################################
 
-# variable "public_subnets_cidr" {
-#   description = "CIDR blocks for public subnets"
-#   type        = list(string)
-# }
+variable "public_subnets_cidr" {
+  description = "CIDR blocks for public subnets"
+  type        = list(string)
+}
 
-# variable "availability_zones" {
-#   description = "List of availability zones for the public subnets"
-#   type        = list(string)
-# }
+variable "availability_zones" {
+  description = "List of availability zones for the public subnets"
+  type        = list(string)
+}
 
-# variable "private_subnets_cidr" {
-#   description = "CIDR blocks for private subnets"
-#   type        = list(string)
-# }
+variable "private_subnets_cidr" {
+  description = "CIDR blocks for private subnets"
+  type        = list(string)
+}
 
 # # ################################################################################
 # # Security Group
@@ -98,10 +98,10 @@ variable "vpc_cidr" {
 # # ################################################################################
 # # EKS
 # # ################################################################################
-# variable "cluster_name" {
-#   description = "Name of the EKS cluster (will be prefixed with project-env)"
-#   type        = string
-# }
+variable "cluster_name" {
+  description = "Name of the EKS cluster (will be prefixed with project-env)"
+  type        = string
+}
 
 # variable "cluster_version" {
 #   description = "Kubernetes version to use for the EKS cluster"

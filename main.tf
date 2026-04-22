@@ -24,31 +24,31 @@ module "vpc" {
   project     = var.project
 }
 
-# module "public_subnet" {
-#   source = "./modules/networking/subnet/public-subnet"
+module "public_subnet" {
+  source = "./modules/networking/subnet/public-subnet"
 
-#   vpc_id              = module.vpc.vpc_id
-#   public_subnets_cidr = var.public_subnets_cidr
-#   availability_zones  = var.availability_zones
-#   environment         = var.environment
-#   project             = var.project
-#   cluster_name        = var.cluster_name
+  vpc_id              = module.vpc.vpc_id
+  public_subnets_cidr = var.public_subnets_cidr
+  availability_zones  = var.availability_zones
+  environment         = var.environment
+  project             = var.project
+  cluster_name        = var.cluster_name
 
-#   depends_on = [module.vpc]
-# }
+  depends_on = [module.vpc]
+}
 
-# module "public_route_table" {
-#   source = "./modules/networking/route-table/public-route-table"
+module "public_route_table" {
+  source = "./modules/networking/route-table/public-route-table"
 
-#   vpc_id      = module.vpc.vpc_id
-#   igw_id      = module.igw.igw_id
-#   environment = var.environment
-#   project     = var.project
-#   # Pass the public subnets CIDR blocks to the route table association
-#   public_subnets_cidr = module.public_subnet.public_subnet_ids
+  vpc_id      = module.vpc.vpc_id
+  igw_id      = module.igw.igw_id
+  environment = var.environment
+  project     = var.project
+  # Pass the public subnets CIDR blocks to the route table association
+  public_subnets_cidr = module.public_subnet.public_subnet_ids
 
-#   depends_on = [module.public_subnet, module.igw]
-# }
+  depends_on = [module.public_subnet, module.igw]
+}
 
 # module "igw" {
 #   source = "./modules/networking/igw"
@@ -60,18 +60,18 @@ module "vpc" {
 #   depends_on = [module.vpc]
 # }
 
-# module "private_subnet" {
-#   source = "./modules/networking/subnet/private-subnet"
+module "private_subnet" {
+  source = "./modules/networking/subnet/private-subnet"
 
-#   vpc_id               = module.vpc.vpc_id
-#   private_subnets_cidr = var.private_subnets_cidr
-#   availability_zones   = var.availability_zones
-#   environment          = var.environment
-#   project              = var.project
-#   cluster_name         = var.cluster_name
+  vpc_id               = module.vpc.vpc_id
+  private_subnets_cidr = var.private_subnets_cidr
+  availability_zones   = var.availability_zones
+  environment          = var.environment
+  project              = var.project
+  cluster_name         = var.cluster_name
 
-#   depends_on = [module.vpc]
-# }
+  depends_on = [module.vpc]
+}
 
 # module "private_route_table" {
 #   source = "./modules/networking/route-table/private-route-table"
