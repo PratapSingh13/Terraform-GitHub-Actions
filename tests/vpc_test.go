@@ -40,7 +40,7 @@ func TestVPCModule(t *testing.T) {
 
 	// 4. Private Subnets count
 	privateSubnetIDs := terraform.OutputList(t, terraformOptions, "private_subnet_ids")
-	assert.Greater(t, len(privateSubnets), 0)
+	assert.Greater(t, len(privateSubnetIDs), 0)
 
 	// 5. Tags validation
 	tags := terraform.OutputMap(t, terraformOptions, "vpc_tags")
