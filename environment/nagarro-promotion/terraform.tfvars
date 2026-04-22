@@ -52,7 +52,7 @@ availability_zones   = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]
 # # ################################################################################
 # # EKS
 # # ################################################################################
-cluster_name    = "eks-cluster"
+cluster_name = "eks-cluster"
 # cluster_version = "1.33"
 
 # scaling_config = {
