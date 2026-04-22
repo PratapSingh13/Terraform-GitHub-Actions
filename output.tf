@@ -9,11 +9,11 @@ output "vpc_cidr" {
   value       = module.vpc.vpc_cidr_block
 }
 
-# # Internet Gateway
-# output "igw_id" {
-#   description = "ID of the Internet Gateway"
-#   value       = module.igw.igw_id
-# }
+# Internet Gateway
+output "igw_id" {
+  description = "ID of the Internet Gateway"
+  value       = module.igw.igw_id
+}
 
 # # NAT Gateway
 # output "nat_gateway_id" {
@@ -44,11 +44,11 @@ output "private_subnet_cidrs" {
   value       = module.private_subnet.private_subnets_cidr
 }
 
-# # Route Tables
-# output "public_route_table_id" {
-#   description = "Public Route Table ID"
-#   value       = module.public_route_table.route_table_id
-# }
+# Route Tables
+output "public_route_table_id" {
+  description = "Public Route Table ID"
+  value       = module.public_route_table.route_table_id
+}
 
 # # Security Group
 # output "security_group_id" {

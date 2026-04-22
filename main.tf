@@ -50,15 +50,15 @@ module "public_route_table" {
   depends_on = [module.public_subnet, module.igw]
 }
 
-# module "igw" {
-#   source = "./modules/networking/igw"
+module "igw" {
+  source = "./modules/networking/igw"
 
-#   vpc_id      = module.vpc.vpc_id
-#   environment = var.environment
-#   project     = var.project
+  vpc_id      = module.vpc.vpc_id
+  environment = var.environment
+  project     = var.project
 
-#   depends_on = [module.vpc]
-# }
+  depends_on = [module.vpc]
+}
 
 module "private_subnet" {
   source = "./modules/networking/subnet/private-subnet"
